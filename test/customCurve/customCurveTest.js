@@ -2,6 +2,9 @@ var assert = require('assert');
 var eccDeps = require('../../lib/deps/ecc/curves'); 
 var ecdsa = require('../../lib/algorithms/ecdsa');
 var ecdh = require('../../lib/algorithms/ecdh');
+var constant = require('../../lib/algorithms/constants');
+var JWS = require("../../lib/jws");
+var JWK = require("../../lib/jwk");
 
  //p= 2^256 - 2^32 - 2^9 - 2^8 - 2^7 - 2^6 - 2^4 - 1
  var p = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F";
@@ -28,6 +31,20 @@ var ecdh = require('../../lib/algorithms/ecdh');
     y: Buffer.from("7e1ebe3c3d318380c8fd3d40c0f689fe7a5dbdbc70efe836c77613e690f96366","hex"),
     d: Buffer.from("dee85ff184dfdb9b8c5075dda7da2253eb1f7bb8d9583b3b9457cdff39ced22d","hex")
   }
+
+  var keyYuri = {
+      "kty":"EC",
+      "kid":"c6763QMpFR1jLJ9gGkjMFRnwTMzux_v-VzY0Rx5Oal4",
+      "use":"sig",
+      "crv":"P-256K",
+      "key_ops":["sign","verify"],
+      "x":"efy2Xj8t46Uo2-sESsuo73cjaR0j6Rttp6BKmYvrP4g",
+      "y":"byRbhv8juOlElUnmtV5IDXvi2F0g2YheBzh58P-lv9Y"
+    }
+
+var tokenYuri = 
+    "eyJhbGciOiJFUzI1NksiLCJqd2siOnsia3R5IjoiRUMiLCJ1c2UiOiJzaWciLCJjcnYiOiJQLTI1NksiLCJraWQiOiJjNjc2M1FNcEZSMWpMSjlnR2tqTUZSbndUTXp1eF92LVZ6WTBSeDVPYWw0Iiwia2V5X29wcyI6WyJzaWduIiwidmVyaWZ5Il0sIngiOiJlZnkyWGo4dDQ2VW8yLXNFU3N1bzczY2phUjBqNlJ0dHA2QkttWXZyUDRnIiwieSI6ImJ5UmJodjhqdU9sRWxVbm10VjVJRFh2aTJGMGcyWWhlQnpoNThQLWx2OVkifX0.eyJzdWIiOiJrb21nbyIsInZlciI6IjAuMC4xIiwiaXNzIjoidmFrdC5pbyIsImlhdCI6MTUzNDM0Nzk1Nn0.8nop0OXMuIOLiUkMB0H8CFRS3XqIzRiR3iQZZbCYsO2H5YrgQKj7h31rL5gv9rjXm6oe8lwbMyvVQG-JrPi5Tw";
+
  
 describe("addcurve",function(){
     it("should add a custom curve",function(){
@@ -55,15 +72,31 @@ describe("addcurve",function(){
         })  
   })  
 
-  it.only("should derive shared secret",function(done){
+  it("should derive shared secret",function(done){
     eccDeps[curveName] = eccDeps.getX9ECParameters(p,a,b,n,h,gLeft,gRight);
-      ecdh.addNodeJsECCurveNameMapping(curveName,curveName);
+    constant.NODECURVEMAPPING[curveName] =curveName;
     ecdh["ECDH-ES"].encrypt(keyB,undefined,{epk:key,enc:"A256GCM"}).then(function(sharedEnc){
         ecdh["ECDH-ES"].decrypt(keyB,undefined,{epk:key,enc:"A256GCM"}).then(function(sharedDec){
             assert.deepEqual(sharedEnc.data,sharedDec);
-            ecdh.addNodeJsECCurveNameMapping(curveName,undefined);
+            constant.NODECURVEMAPPING[curveName]= undefined;
+            eccDeps[curveName] = undefined;
             done(); 
         })
     })
+  })
+
+
+
+it.only("verify yuri",function(done){
+ 
+        eccDeps["P-256K"] = eccDeps.getX9ECParameters(p,a,b,n,h,gLeft,gRight);
+        constant.NODECURVEMAPPING["P-256K"] = curveName;
+        ecdsa.addEcdsaAlgorithm("ES256K","P-256K","SHA-256");
+        var verifier = JWS.createVerify();
+        verifier.verify(tokenYuri,{ allowEmbeddedKey: true }).then(function(result){
+            done();
+        })
+  
 })
+
 })
