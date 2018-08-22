@@ -5,6 +5,7 @@ var ecdh = require('../../lib/algorithms/ecdh');
 var constant = require('../../lib/algorithms/constants');
 var JWS = require("../../lib/jws");
 var JWK = require("../../lib/jwk");
+var JWE = require('../../lib/jwe');
 
  //p= 2^256 - 2^32 - 2^9 - 2^8 - 2^7 - 2^6 - 2^4 - 1
  var p = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F";
@@ -14,7 +15,7 @@ var JWK = require("../../lib/jwk");
  var h = "01";
  var gLeft = "79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798";
  var gRight = "483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8";
- var curveName  = "secp256k1";
+ var curveName  = "P-256K";
 
  var key= {
     kty: "EC",
@@ -47,56 +48,45 @@ var tokenYuri =
 
  
 describe("addcurve",function(){
+
     it("should add a custom curve",function(){
-          
-          eccDeps[curveName] = eccDeps.getX9ECParameters(p,a,b,n,h,gLeft,gRight);
-          assert.notEqual(eccDeps[curveName],undefined);
-          eccDeps[curveName] = undefined;
+        assert.notEqual(eccDeps[curveName],undefined);
     })
+
     it("should sign with custom curve",function(done){
-        var curveName  = "secp256k1";
-        var ecdsaAlgName = "MyAlgo";
-      
-        eccDeps[curveName] = eccDeps.getX9ECParameters(p,a,b,n,h,gLeft,gRight);
-        ecdsa.addEcdsaAlgorithm(ecdsaAlgName,curveName,"SHA-256");
+        var ecdsaAlgName = "ES256K"
         var ecdsaItem = ecdsa[ecdsaAlgName];
         var data = Buffer.from("This is test data","utf8");
         ecdsaItem.sign(key,data).then(function(sig){
             assert.deepEqual(data,sig.data);
             ecdsaItem.verify(key,sig.data,sig.mac).then(function(itVerify){
                 assert.equal(true,itVerify.valid);
-                ecdsa[ecdsaAlgName] = undefined;
-                eccDeps[curveName] = undefined;
                 done();
             })
         })  
   })  
 
   it("should derive shared secret",function(done){
-    eccDeps[curveName] = eccDeps.getX9ECParameters(p,a,b,n,h,gLeft,gRight);
-    constant.NODECURVEMAPPING[curveName] =curveName;
+    
     ecdh["ECDH-ES"].encrypt(keyB,undefined,{epk:key,enc:"A256GCM"}).then(function(sharedEnc){
         ecdh["ECDH-ES"].decrypt(keyB,undefined,{epk:key,enc:"A256GCM"}).then(function(sharedDec){
             assert.deepEqual(sharedEnc.data,sharedDec);
-            constant.NODECURVEMAPPING[curveName]= undefined;
-            eccDeps[curveName] = undefined;
             done(); 
         })
     })
   })
 
-
-
-it.only("verify yuri",function(done){
- 
-        eccDeps["P-256K"] = eccDeps.getX9ECParameters(p,a,b,n,h,gLeft,gRight);
-        constant.NODECURVEMAPPING["P-256K"] = curveName;
-        ecdsa.addEcdsaAlgorithm("ES256K","P-256K","SHA-256");
+    it("verify yuri",function(done){
         var verifier = JWS.createVerify();
         verifier.verify(tokenYuri,{ allowEmbeddedKey: true }).then(function(result){
             done();
         })
-  
-})
+    })
 
+    it.only("should create a jwe",function(done){
+        var data = Buffer.from("This is a dta to be encrypted","utf8");
+        JWE.createEncrypt({format:'compact'},key).update(data).final().then(function(encResult){
+            done();
+        })
+    })
 })
